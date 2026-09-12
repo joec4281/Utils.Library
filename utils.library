@@ -501,15 +501,7 @@ set HashValue=%@md5[%1]
 Return
 
 :ReadHash
-set HashFileHandle=%@fileopen[%theHASH,r]
-
-iff %HashFileHandle ge 0 then
-    set HashValue=%@fileread[%HashFileHandle]
-    echo %@fileclose[%HashFileHandle] > nul
-else
-    set HashValue=
-endiff
-
+  set HashValue=%@line[%theHASH,0]
 Return
 
 :CompareHash
