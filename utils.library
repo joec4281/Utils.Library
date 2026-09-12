@@ -1,0 +1,448 @@
+BuildPrompt {
+   :: Do not disturb
+   @echo off
+   setlocal
+
+   :: Save parameters
+   set theme=%1
+   set appendspace=%2
+
+   :: The TCC (and cmd.exe) PROMPT command does not allow for multiple lines in a prompt string.
+   :: So we collect the output from oh-my-posh in an array.
+   set LINESNUM=10
+   setarray /f promptlines[ %LINESNUM ]
+   echo %@execarray[ promptlines, oh-my-posh.exe --shell universal --config %theme ] >& nul
+
+   :: States for line processing.
+   :: The first line is just added as is. Following lines are added with a line break $ sequence
+   :: ($_) in between. When a non-empty line is found, the state changes such that when an empty
+   :: line is found, the loop stops. At that point a space is optionally appended to the prompt.
+   set state=first_line
+
+   :: Process the lines to build a prompt string for TCC
+   do index = 0 to %LINESNUM
+      switch %state
+      case first_line
+         :: Collect the first line as is
+         set promptstr=%promptlines[ %index ]
+         set state=following_lines
+         :: Go directly to next state
+         iterate
+
+      case following_lines
+         iff not "%promptlines[ %index ]" == "" then
+            set state=break_on_empty
+         endiff
+
+      case break_on_empty
+         :: Empty line encountered?
+         iff "%promptlines[ %index ]" == "" then
+            :: Add trailing space?
+            iff defined appendspace .and. %appendspace then
+               set promptstr=%promptstr%$s
+            endiff
+            :: No more to do here
+            leave
+         endiff
+      endswitch
+
+      :: Add line to prompt string with a linebreak in between.
+      set promptstr=%promptstr%$_%promptlines[ %index ]
+   enddo
+
+   :: It seems that arrays are not destroyed automatically by endlocal so a bit of explicit cleanup
+   :: is needed.
+   unsetarray promptlines
+
+   :: Present prompt to the world
+   echo %promptstr
+   endlocal
+}
+
+aiu {
+@SETLOCAL
+@ECHO OFF
+::    File: aiu.btm
+:: Created: 2024-09-20
+:: Updated: 2024-12-31
+::   _4ver: 33.00
+:: _winver: 10.0
+::
+:: LoadLibraries.btm to reload after modification.
+iff %_x64 eq 1 then
+	iff %_admin eq 1 then
+		iff %_elevated eq 1 then
+		:: NEXT SENTENCE
+	else
+		echo Note that this .BTM was tested on a 64-bit version of Windows,
+		echo as Administrator,
+		echo from an elevated process.
+		echo.
+		echo You are running the following;
+		echo      _x64: 1
+		echo    _admin: 1
+		echo _elevated: 1
+		pause
+		endiff
+	endiff
+endiff
+
+:: Drive R:\ is a 2GB RAMDrive
+if isdir r:\temp set temp=r:\temp
+
+echo Getting File info for https://jpsoft.com/downloads/v%_vermajor/TCMD.EXE
+::copy /q https://jpsoft.com/downloads/v33/tcmdupdate.aiu %temp
+::As of 2024/10/09 returns TCC: HTTP protocol error. 403 Forbidden. "https://jpsoft.com/downloads/v%_vermajor/tcmdupdate.aiu"
+::Switched to curl.exe instead of copy.
+curl.exe -s -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:92.0) Gecko/20100101 Firefox/92.0" -O https://jpsoft.com/downloads/v%_vermajor/tcmdupdate.aiu
+
+if exist tcmdupdate.aiu move /q tcmdupdate.aiu %temp
+  
+iff exist %temp\tcmdupdate.aiu then
+  echo Name           : %@iniread[%temp\tcmdupdate.aiu,Update,Name]
+  iff %@iniread[%temp\tcmdupdate.aiu,Update,ProductVersion] eq %_4ver.%_build then
+    echo Product Version: %@iniread[%temp\tcmdupdate.aiu,Update,ProductVersion]
+  else
+    set _Inverse=`^e[7m`
+    set _Reset=`^e[0m`
+    echo Product Version: %_Inverse``%@iniread[%temp\tcmdupdate.aiu,Update,ProductVersion]``%_Reset
+    color bright green on black
+  endiff
+  echo Release Date   : %@iniread[%temp\tcmdupdate.aiu,Update,ReleaseDate]
+  echo Installed Vers : %_4ver.%_build
+else
+  echo %temp\tcmdupdate.aiu does not exist.
+endiff
+
+ENDLOCAL
+:: aiu
+}
+
+cyg {
+@echo off
+if %@search[sort.exe] eq C:\cygwin64\bin\sort.exe set cygwin=y
+if %@search[sort.exe] eq C:\WINDOWS\system32\sort.exe set cygwin=n
+:: Pre-pend the cygwin folder to the path
+if %1 eq on .and. %cygwin eq n set path=c:\cygwin64\bin;%path%
+::
+:: Remove the cygwin folder from the path
+if %1 eq off .and. %cygwin eq y path /d c:\cygwin64\bin
+::
+if %@search[sort.exe] eq C:\cygwin64\bin\sort.exe set cygwin=y
+if %@search[sort.exe] eq C:\WINDOWS\system32\sort.exe set cygwin=n
+}
+
+ibm3270 {
+@echo off
+
+if %_X64 eq 1 (
+  if not plugin 4Console @plugin /l E:\utils\4Console64.dll > nul
+) else (
+  if not plugin 4Console @plugin /l E:\utils\4Console.dll > nul
+)
+
+:: setfont is a plugin command (4CONSOLE)
+:: if %_tctabs eq 0 setfont 0 16 34 700 "IBM 3270"
+}
+
+cpw {
+@setlocal
+@echo off
+iff %# eq 1 then
+  switch %1
+  case yes then
+    option //ConsolePopupWindows=Yes
+  case no then
+    option //ConsolePopupWindows=No
+  endswitch
+endiff
+echo ConsolePopupWindows: %@option[ConsolePopupWindows]  
+endlocal 
+}
+
+mrkdwn {
+@SETLOCAL
+@ECHO OFF
+if isfunction contains unfunction contains
+function contains=`%@index[%1,%2,0]`
+iff %@contains[%@search[msedge.exe],msedge.exe] eq 1 then
+  iff %# eq 0 then
+    iff exist *.md then
+      if defined theFile unset theFile
+      select /z set theFile=(*.md)
+      iff defined theFile then
+        echo %theFile
+        pause
+        set theFile=%@truename[%theFile]
+        msedge %theFile 
+      endiff
+    else
+      echo No .md files in this folder.
+    endiff
+  else
+    iff exist %1 then
+      msedge %@truename[%1]
+    else
+      echo %1 does not exist in this folder.
+    endiff
+  endiff
+endiff
+ENDLOCAL
+}
+
+xEd {
+@SETLOCAL
+@ECHO OFF
+
+if defined theEditor unset theEditor
+
+iff %# gt 0 then
+  iff not exist %1 then
+    echo There are no %1 files in this folder.
+    quit
+  endiff
+endiff
+
+switch %1
+case *.ahk
+  set theEditor=uedit64.exe
+  set thefiles=*.ahk
+case *.btm
+  set theEditor=TCEdit.exe
+  set theFiles=*.btm
+case *.md
+  set theEditor=mm.exe -nosplash 
+  set theFiles=*.md
+case *.ps1
+  set theEditor=uedit64.exe
+  set theFiles=*.ps1
+case *.vbs
+  set theEditor=VBSEdit.exe
+  set theFiles=*.vbs
+case *.*
+  set theEditor=uedit64.exe
+  set theFiles=*.*
+default
+  echo USAGE: xEd *.btm
+  echo        xEd *.ahk
+  echo        xEd *.md
+  echo        xEd *.ps1
+  echo        xEd *.vbs
+  echo        xEd *.* 
+  echo        xEd 
+  quit
+endswitch
+
+iff exist %theFiles then
+  if defined theFile unset theFile
+  select /z set theFile=(%theFiles)
+  iff defined theFile then
+    set theFile=%@truename[%theFile]
+    start %theEditor %theFile
+  endiff
+endiff
+ENDLOCAL
+}
+
+c#run {
+@setlocal
+@echo off
+
+if isdir r:\temp set temp=r:\temp
+
+set _libraryfunction=%0
+
+rem _library is defined in TCSTART.BTM
+rem C:\...\TCMD36>echo %_library
+rem "C:\Program Files\JPSoft\TCMD36\library"
+set _libraryname=%_library\utils.library
+
+set csc="C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\Roslyn\csc.exe"
+
+set theEXE=%temp\%@name[%1].exe
+
+iff %# eq 0 then
+  echo USAGE: %_libraryfunction test.csx
+  quit
+endiff
+
+iff defined rebuild then
+  iff exist %theEXE then
+    del /q %theEXE
+  endiff
+endiff 
+
+set HashValue=%@iniread[%_libraryname:%@name[%_libraryname].ini,Main,hashvalue]
+
+iff not defined HashValue then
+  Gosub CreateHash
+  set HashValue=%@iniread[%_batchname:%@name[%_batchname].ini,Main,hashvalue]
+endiff
+
+Gosub CompareHash
+
+iff %CompareHash eq Y then
+  Gosub RunEXE
+else
+  Gosub CompileEXE
+  iff exist %theEXE then
+    Gosub RunEXE
+    Gosub CreateHash
+    set CompareHash=Y
+  endiff
+endiff
+
+if isalias csc unalias csc
+
+endlocal
+quit
+
+:CreateHash
+  echo %@iniwrite[%_libraryname:%@name[%_libraryname].ini,Main,hashvalue,%@md5[%1]] > nul
+Return
+
+:CompareHash
+debugstring .ini Hash Value: %HashValue
+debugstring @MD5 Hash Value: %@md5[%1]
+iff %HashValue eq %@md5[%1] then
+  set CompareHash=Y
+else
+  set CompareHash=N
+endiff
+debugstring CompareHash: %CompareHash
+Return
+
+:RunEXE
+iff exist %theEXE then
+  %theEXE %2$
+else
+  Gosub CompileEXE
+  %theEXE %2$
+  Gosub CreateHash
+endiff
+Return
+
+:CompileEXE
+  rem You can remove VBCSCompiler.exe from memory by doing
+  rem taskkill.exe /im VBCSCompiler.exe /f
+  if %@pid[VBCSCompiler.exe] eq 0 echo /shared /keepalive:600 not active.
+  rem /keepalive:600 is about 10 minutes.
+  rem Initial csc.exe time is 00:02.112
+  rem Subsiqent csc.exe times average 00:01.320
+  %csc -nologo /shared /keepalive:600 %1 -out:%theEXE
+  iff %? ne 0 then
+    echo Error compiling %theEXE
+    quit
+  endiff
+  if %@pid[VBCSCompiler.exe] eq 0 echo /shared /keepalive:600 not active.
+Return
+}
+
+vbrun {
+@setlocal
+@echo off
+
+if isdir r:\temp set temp=r:\temp
+
+set _libraryfunction=%0
+
+rem _library is defined in TCSTART.BTM
+rem C:\...\TCMD36>echo %_library
+rem "C:\Program Files\JPSoft\TCMD36\library"
+set _libraryname=%_library\utils.library
+
+set vbc="C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\Roslyn\vbc.exe"
+set theEXE=%temp\%@name[%1].exe
+
+iff %# eq 0 then
+  echo USAGE: %_libraryfunction test.csx
+  quit
+endiff
+
+iff defined rebuild then
+  iff exist %theEXE then
+    del /q %theEXE
+  endiff
+endiff 
+
+set HashValue=%@iniread[%_libraryname:%@name[%_libraryname].ini,Main,hashvalue]
+
+iff not defined HashValue then
+  Gosub CreateHash
+  set HashValue=%@iniread[%_batchname:%@name[%_batchname].ini,Main,hashvalue]
+endiff
+
+Gosub CompareHash
+
+iff %CompareHash eq Y then
+  Gosub RunEXE
+else
+  Gosub CompileEXE
+  iff exist %theEXE then
+    Gosub RunEXE
+    Gosub CreateHash
+    set CompareHash=Y
+  endiff
+endiff
+
+if isalias csc unalias csc
+
+endlocal
+quit
+
+:CreateHash
+  echo %@iniwrite[%_libraryname:%@name[%_libraryname].ini,Main,hashvalue,%@md5[%1]] > nul
+Return
+
+:CompareHash
+debugstring .ini Hash Value: %HashValue
+debugstring @MD5 Hash Value: %@md5[%1]
+iff %HashValue eq %@md5[%1] then
+  set CompareHash=Y
+else
+  set CompareHash=N
+endiff
+debugstring CompareHash: %CompareHash
+Return
+
+:RunEXE
+iff exist %theEXE then
+  %theEXE %2$
+else
+  Gosub CompileEXE
+  %theEXE %2$
+  Gosub CreateHash
+endiff
+Return
+
+:CompileEXE
+  rem You can remove VBCSCompiler.exe from memory by doing
+  rem taskkill.exe /im VBCSCompiler.exe /f
+  if %@pid[VBCSCompiler.exe] eq 0 echo /shared /keepalive:600 not active.
+  rem /keepalive:600 is about 10 minutes.
+  rem Initial csc.exe time is 00:02.112
+  rem Subsiqent csc.exe times average 00:01.320
+  %vbc -nologo /shared /keepalive:600 %1 -out:%theEXE
+  iff %? ne 0 then
+    echo Error compiling %theEXE
+    quit
+  endiff
+  if %@pid[VBCSCompiler.exe] eq 0 echo /shared /keepalive:600 not active.
+Return
+}
+
+relib {
+@SETLOCAL
+@ECHO OFF
+cdd "C:\Program Files\JPSoft\TCMD%_vermajor\library"
+iff %# eq 0 then
+  echo USAGE: relib LibraryName
+  echo        relib utils
+  quit
+endiff
+library /d c#run
+library /d vbrun
+library /r /u %1.library
+cdd - 
+ENDLOCAL 
+}
