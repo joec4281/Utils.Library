@@ -244,6 +244,11 @@ endiff
 ENDLOCAL
 }
 
+::-------------------------------------------------------------+
+:: C#Run Command                                               |
+:: Uses the csc.exe command to compile a .cs file into an .exe |
+:: The hash of the .cs file is stored in an .ini file          |
+::-------------------------------------------------------------+
 c#run {
 @setlocal
 @echo off
@@ -431,6 +436,11 @@ Return
 Return
 }
 
+::-------------------------------------------------------------+
+:: C#Run1 Command                                              |
+:: Uses the csc.exe command to compile a .cs file into an .exe |
+:: The hash of the .cs file is stored in .exe.hash             |
+::-------------------------------------------------------------+
 c#run1 {
 @setlocal
 @echo off
@@ -485,7 +495,6 @@ if isalias csc unalias csc
 endlocal
 quit
 
-
 :CreateHash
 echo %@md5[%1] >! %theHASH
 set HashValue=%@md5[%1]
@@ -516,7 +525,6 @@ endiff
 debugstring CompareHash: %CompareHash
 Return
 
-
 :RunEXE
 iff exist %theEXE then
     %theEXE %2$
@@ -541,7 +549,6 @@ if %@pid[VBCSCompiler.exe] eq 0 echo /shared /keepalive:600 not active.
 
 Return
 }
-
 
 relib {
 @SETLOCAL
