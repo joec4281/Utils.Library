@@ -1,0 +1,14 @@
+@SETLOCAL
+@ECHO OFF
+if isdir r:\temp set temp=r:\temp
+
+set _iniStuff=e:\utils\Stuff.ini
+set _libraryfunction=%0
+
+library /d aiu
+library /d BuildPrompt
+library /d c#run
+library /d vbrun
+library /r /u utils.library
+
+ENDLOCAL

@@ -431,6 +431,118 @@ Return
 Return
 }
 
+c#run1 {
+@setlocal
+@echo off
+
+if isdir r:\temp set temp=r:\temp
+
+set _libraryfunction=%0
+set csc="C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\Roslyn\csc.exe"
+
+iff %# eq 0 then
+    echo USAGE: %_libraryfunction test.cs
+    quit
+endiff
+
+set theEXE=%temp\%@name[%1].exe
+set theHASH=%theEXE.hash
+
+iff defined rebuild then
+    iff exist %theEXE then
+        del /q %theEXE
+    endiff
+
+    iff exist %theHASH then
+        del /q %theHASH
+    endiff
+endiff
+
+iff not exist %theHASH then
+    Gosub CompileEXE
+
+    iff exist %theEXE then
+        Gosub CreateHash
+        Gosub RunEXE
+    endiff
+else
+    Gosub ReadHash
+    Gosub CompareHash
+
+    iff "%CompareHash" eq "Y" then
+        Gosub RunEXE
+    else
+        Gosub CompileEXE
+
+        iff exist %theEXE then
+            Gosub CreateHash
+            Gosub RunEXE
+        endiff
+    endiff
+endiff
+
+if isalias csc unalias csc
+endlocal
+quit
+
+
+:CreateHash
+echo %@md5[%1] >! %theHASH
+set HashValue=%@md5[%1]
+Return
+
+:ReadHash
+set HashFileHandle=%@fileopen[%theHASH,r]
+
+iff %HashFileHandle ge 0 then
+    set HashValue=%@fileread[%HashFileHandle]
+    echo %@fileclose[%HashFileHandle] > nul
+else
+    set HashValue=
+endiff
+
+Return
+
+:CompareHash
+debugstring Hash File: %HashValue
+debugstring Source Hash: %@md5[%1]
+
+iff "%HashValue" eq "%@md5[%1]" then
+    set CompareHash=Y
+else
+    set CompareHash=N
+endiff
+
+debugstring CompareHash: %CompareHash
+Return
+
+
+:RunEXE
+iff exist %theEXE then
+    %theEXE %2$
+endiff
+
+Return
+
+:CompileEXE
+rem You can remove VBCSCompiler.exe from memory by doing:
+rem taskkill.exe /im VBCSCompiler.exe /f
+
+if %@pid[VBCSCompiler.exe] eq 0 echo /shared /keepalive:600 not active.
+
+%csc -nologo /shared /keepalive:600 %1 -out:%theEXE
+
+iff %? ne 0 then
+    echo Error compiling %theEXE
+    quit
+endiff
+
+if %@pid[VBCSCompiler.exe] eq 0 echo /shared /keepalive:600 not active.
+
+Return
+}
+
+
 relib {
 @SETLOCAL
 @ECHO OFF
@@ -440,6 +552,8 @@ iff %# eq 0 then
   echo        relib utils
   quit
 endiff
+library /d aiu
+library /d BuildPrompt
 library /d c#run
 library /d vbrun
 library /r /u %1.library
